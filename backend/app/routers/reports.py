@@ -234,3 +234,20 @@ async def retry_report(report_id: int, db: AsyncSession = Depends(get_db)):
     report.processed_at = None
     await db.commit()
     return _report_out(report, repo, project)
+
+
+@router.delete(
+    "/api/reports/{report_id}",
+    status_code=204,
+    dependencies=[Depends(require_token)],
+)
+async def delete_report(report_id: int, db: AsyncSession = Depends(get_db)) -> None:
+    """Delete one failed Report so it stops appearing in the queue indicator."""
+    row = (await db.execute(_report_query().where(Report.id == report_id))).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    report = row[0]
+    if report.status != REPORT_FAILED:
+        raise HTTPException(status_code=409, detail="Only failed reports can be deleted")
+    await db.delete(report)
+    await db.commit()

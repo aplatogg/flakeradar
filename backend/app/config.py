@@ -61,7 +61,8 @@ class Settings(BaseSettings):
     max_report_retries: int = 3
 
     # Retention (pruned hourly by the Report processor).
-    report_retention_days: int = 7  # processed Reports; failed ones are kept
+    report_retention_days: int = 7  # processed Reports; failed ones are handled below
+    failed_report_retention_days: int = 0  # failed Reports; 0 = keep until a human deals with them
     execution_retention_days: int = 90  # Executions (and Runs left empty)
     score_history_retention_days: int = 365  # Score history rows (ADR 0007)
     prune_interval_seconds: float = 3600.0

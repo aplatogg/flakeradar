@@ -41,6 +41,19 @@ describe("QueueIndicator", () => {
     expect(button).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("shows the age and the dismiss command of a failed report", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-28T00:00:00Z"));
+    try {
+      const loadFailed = vi.fn().mockResolvedValue([failedReport]);
+      render(<QueueIndicator summary={{ pending: 0, failed: 1 }} loadFailed={loadFailed} />);
+      await userEvent.click(screen.getByRole("button"));
+      expect(await screen.findByText("3 days ago")).toBeInTheDocument();
+      expect(screen.getByText(/curl -X DELETE/)).toBeInTheDocument();
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it("says so when there are no failed reports", async () => {
     render(
       <QueueIndicator

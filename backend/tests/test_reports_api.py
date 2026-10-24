@@ -75,3 +75,19 @@ async def test_retry_respects_cap(client, db, monkeypatch):
     resp = await client.post(f"/api/reports/{failed.id}/retry", headers=AUTH)
     assert resp.status_code == 409
     assert resp.json()["detail"] == "Max retries reached for this report"
+
+
+async def test_delete_only_failed_report(client, db):
+    pending, failed, done, _ = await _seed(db)
+    assert (await client.delete(f"/api/reports/{failed.id}")).status_code == 401
+    assert (await client.delete("/api/reports/9999", headers=AUTH)).status_code == 404
+
+    for report in (pending, done):
+        conflict = await client.delete(f"/api/reports/{report.id}", headers=AUTH)
+        assert conflict.status_code == 409
+        assert conflict.json()["detail"] == "Only failed reports can be deleted"
+
+    assert (await client.delete(f"/api/reports/{failed.id}", headers=AUTH)).status_code == 204
+    assert (await client.get(f"/api/reports/{failed.id}")).status_code == 404
+    listed_ids = [r["id"] for r in (await client.get("/api/reports")).json()]
+    assert failed.id not in listed_ids

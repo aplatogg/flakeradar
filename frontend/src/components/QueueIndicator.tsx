@@ -1,6 +1,13 @@
 import { useState } from "react";
 import type { ReportInfo, ReportSummary } from "../api";
 
+/** How long a failed report has waited, in whole days. */
+function reportAge(createdAt: string): string {
+  const days = Math.floor((Date.now() - Date.parse(createdAt)) / 86_400_000);
+  if (!Number.isFinite(days) || days <= 0) return "today";
+  return days === 1 ? "1 day ago" : `${days} days ago`;
+}
+
 /** "3 pending · 1 failed" — the only place a broken CI upload becomes visible.
  *  Hidden while the queue is empty and nothing has failed. */
 export function QueueIndicator({
@@ -60,6 +67,7 @@ export function QueueIndicator({
                       {r.project == null ? `${r.repo} · pipeline` : `${r.repo} / ${r.project}`} ·{" "}
                       {r.commit_sha.slice(0, 10)}
                     </div>{" "}
+                    <div className="text-muted">{reportAge(r.created_at)}</div>
                     <div className="text-critical [overflow-wrap:anywhere]">{r.error}</div>
                   </li>
                 ))}
@@ -67,7 +75,11 @@ export function QueueIndicator({
               <div className="mt-2 text-muted">
                 Retry one with{" "}
                 <code className="font-mono text-text-2">POST /api/reports/&lt;id&gt;/retry</code>{" "}
-                (X-API-Key).
+                (X-API-Key). Dismiss one with{" "}
+                <code className="font-mono text-text-2">
+                  curl -X DELETE /api/reports/&lt;id&gt; -H &quot;X-API-Key: $TOKEN&quot;
+                </code>
+                .
               </div>
             </>
           )}

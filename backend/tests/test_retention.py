@@ -65,6 +65,27 @@ async def test_prune_deletes_only_expired_rows(db):
     assert (await db.execute(select(TestRun.commit_sha))).scalars().all() == ["new"]
 
 
+async def test_prune_keeps_failed_reports_unless_configured(db):
+    now = utcnow()
+    proj = await make_project(db)
+    old = await make_report(db, proj, b"<x/>", status=REPORT_FAILED)
+    old.created_at = now - timedelta(days=31)
+    recent = await make_report(db, proj, b"<x/>", status=REPORT_FAILED)
+    recent.created_at = now - timedelta(days=1)
+    old_id, recent_id = old.id, recent.id
+    await db.commit()
+
+    kept = await prune(db, now=now, report_days=7, execution_days=90)
+    await db.commit()
+    assert kept.failed_reports == 0
+    assert set((await db.execute(select(Report.id))).scalars()) == {old_id, recent_id}
+
+    deleted = await prune(db, now=now, report_days=7, execution_days=90, failed_report_days=30)
+    await db.commit()
+    assert deleted.failed_reports == 1
+    assert set((await db.execute(select(Report.id))).scalars()) == {recent_id}
+
+
 async def test_worker_prunes_once_per_interval(engine, session_factory):
     calls = []
 
